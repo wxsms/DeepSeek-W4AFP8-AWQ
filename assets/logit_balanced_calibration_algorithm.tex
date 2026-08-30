@@ -1,0 +1,67 @@
+\documentclass[border=10pt]{standalone}
+\usepackage{amsmath,amssymb}
+\usepackage[ruled,vlined,linesnumbered]{algorithm2e}
+\usepackage{xcolor}
+
+\definecolor{rulegray}{HTML}{5A6573}
+\newcommand{\linenostyle}[1]{\scriptsize\color{rulegray}#1}
+\SetAlCapFnt{\large\bfseries}
+\SetAlCapNameFnt{\large\bfseries}
+\SetAlgoCaptionSeparator{.}
+\SetKwInput{KwInput}{Input}
+\SetKwInput{KwOutput}{Output}
+\SetKw{KwReturn}{return}
+\SetKwComment{Comment}{$\triangleright$\ }{}
+\SetAlgoNlRelativeSize{-1}
+\SetNlSty{linenostyle}{}{}
+\DontPrintSemicolon
+
+\begin{document}
+\begin{minipage}{15.5cm}
+\begin{algorithm}[H]
+\caption{MoE Router-Logit-Balanced Multi-Source Calibration}
+\KwInput{Source pools $\{\mathcal{D}_s\}_{s=1}^{5}$; FP8 model $M$ with $L$ MoE layers; calibration budget $B$; weights $\lambda_s,\lambda_{\mathrm{len}}$.}
+\KwOutput{Router-logit-balanced calibration set $\mathcal{C}$.}
+
+\ForEach{source $s\in\{1,\ldots,5\}$}{
+  \ForEach{MoE layer $\ell\in\{1,\ldots,L\}$}{
+    $P_{s,\ell}\leftarrow
+      \mathbb{E}_{x\sim\mathcal{D}_s,\,t}
+      \left[\operatorname{softmax}\!\left(z_{\ell,t}(M,x)\right)\right]$
+      \Comment*[r]{source-wise router distribution}
+  }
+}
+
+\ForEach{MoE layer $\ell\in\{1,\ldots,L\}$}{
+  $T_{\ell}\leftarrow \dfrac{1}{5}\sum_{s=1}^{5}P_{s,\ell}$
+  \Comment*[r]{equal-source target}
+}
+
+$\mathcal{C}\leftarrow\varnothing$
+
+\While{$|\mathcal{C}|<B$}{
+  $\Omega\leftarrow\operatorname{UnderfilledStrata}
+    (\mathcal{D}_1,\ldots,\mathcal{D}_5,\mathcal{C})$
+    \Comment*[r]{source and length coverage}
+
+  \ForEach{candidate $x\in\Omega$}{
+    \ForEach{MoE layer $\ell\in\{1,\ldots,L\}$}{
+      $\widehat{P}_{\ell}^{(x)}\leftarrow
+        \operatorname{RouterDist}_{\ell}(M,\mathcal{C}\cup\{x\})$
+    }
+    $J(x)\leftarrow
+      \sum_{\ell=1}^{L}\operatorname{JS}
+      \!\left(\widehat{P}_{\ell}^{(x)}\,\|\,T_{\ell}\right)
+      +\lambda_s\,\operatorname{SourceGap}(\mathcal{C}\cup\{x\})
+      +\lambda_{\mathrm{len}}\,\operatorname{LengthGap}(\mathcal{C}\cup\{x\})$
+  }
+
+  $x^{\star}\leftarrow\arg\min_{x\in\Omega}J(x)$
+  \Comment*[r]{best logit-matching sample}
+  $\mathcal{C}\leftarrow\mathcal{C}\cup\{x^{\star}\}$
+}
+
+\KwReturn{$\mathcal{C}$}
+\end{algorithm}
+\end{minipage}
+\end{document}
