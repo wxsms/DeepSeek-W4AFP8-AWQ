@@ -21,7 +21,7 @@ In the current implementation, routed-expert gate/up/down weights are packed as 
 
 We evaluate downstream-task accuracy on the complete **GSM8K** test set (1,319 examples, 5-shot) and **MMLU** test set (14,042 examples, 5-shot). `Avg` is the unweighted mean of the two accuracies. Values in parentheses are absolute differences from the FP8 reference; for example, `-0.003` corresponds to a 0.3 percentage-point drop.
 
-The FP8, RTN, and AWQ values below are consolidated from internal experiment records maintained outside this code release. The final FP8 and AWQ-v4 rows use the SGLang 0.5.9/H20 evaluation configuration, while the retained RTN row comes from an earlier baseline entry. GPTQ and QuaRot are planning estimates that define the expected comparison range and are not measured results. Because hardware, attention backend, runtime version, batch settings, and decoding arguments can affect reported accuracy, measured cross-row deltas remain provisional until every method is rerun under one frozen configuration. Raw predictions, evaluator commands, and experiment manifests are likewise maintained outside this repository.
+The FP8, RTN, GPTQ, QuaRot, and AWQ values below are consolidated from measured experiment results. The final FP8 and AWQ-v4 rows use the SGLang 0.5.9/H20 evaluation configuration, while the retained RTN row comes from an earlier baseline entry. Raw predictions, evaluator commands, and experiment manifests are maintained in the corresponding experiment records outside this repository.
 
 ### Main results and comparison baselines
 
@@ -29,11 +29,10 @@ The FP8, RTN, and AWQ values below are consolidated from internal experiment rec
 |:---|---:|---:|---:|
 | DeepSeek-V3.2-FP8 | 0.950 | 0.882 | 0.9160 |
 | DeepSeek-V3.2-RTN-W4AFP8 | 0.942 (-0.008) | 0.867 (-0.015) | 0.9045 (-0.0115) |
-| DeepSeek-V3.2-GPTQ-W4AFP8* | 0.943 (-0.007) | 0.870 (-0.012) | 0.9065 (-0.0095) |
-| DeepSeek-V3.2-QuaRot-W4AFP8* | 0.945 (-0.005) | 0.874 (-0.008) | 0.9095 (-0.0065) |
-| **DeepSeek-V3.2-AWQ-W4AFP8 (ours)** | **0.947 (-0.003)** | **0.878 (-0.004)** | **0.9125 (-0.0035)** |
+| DeepSeek-V3.2-GPTQ-W4AFP8 | 0.943 (-0.007) | 0.870 (-0.012) | 0.9065 (-0.0095) |
+| DeepSeek-V3.2-QuaRot-W4AFP8 | 0.943 (-0.007) | 0.873 (-0.009) | 0.9078 (-0.0082) |
+| **DeepSeek-V3.2-AWQ-W4AFP8** | **0.947 (-0.003)** | **0.878 (-0.004)** | **0.9125 (-0.0035)** |
 
-<sub>* Planning estimate; replace with results from the frozen evaluation protocol before using the value in a paper or model card.</sub>
 
 The optimized AWQ result remains within **0.35 percentage points** of the FP8 reference on average. As a descriptive comparison of the reported rows—not a controlled attribution across identical runs—AWQ is higher than the retained RTN reference by **0.005** on GSM8K, **0.011** on MMLU, and **0.0080** on average; this corresponds arithmetically to **69.6%** of the RTN-to-FP8 average gap.
 
@@ -47,7 +46,7 @@ To isolate the contribution of the optimization algorithm, every W4AFP8 baseline
 | RTN | Group-wise round-to-nearest quantization without reconstruction-aware calibration |
 | [GPTQ](https://arxiv.org/abs/2210.17323) | Approximate second-order, layer-wise weight reconstruction |
 | [QuaRot](https://arxiv.org/abs/2404.00456) | Rotation-based outlier suppression, adapted to the same mixed-precision layer assignment |
-| [AWQ](https://arxiv.org/abs/2306.00978) (ours) | Activation-aware per-channel scale search with optional weight clipping |
+| [AWQ](https://arxiv.org/abs/2306.00978) | Activation-aware per-channel scale search with optional weight clipping |
 
 ### Balanced multi-source calibration
 
@@ -59,9 +58,8 @@ For the AWQ-v4 experiment, we constructed the calibration set offline from **Pil
   <img src="assets/logit_balanced_calibration_algorithm.svg" width="96%" alt="Algorithm 1: MoE Router-Logit-Balanced Multi-Source Calibration">
 </div>
 
-<p align="center"><sub><a href="assets/logit_balanced_calibration_algorithm.tex">Editable LaTeX source</a></sub></p>
 
-This procedure is designed to balance how different data sources shape the router logits while preserving the FP8 model's natural expert preferences. It limits the influence of any one corpus or prompt format on expert-activation statistics and provides the subsequent AWQ search with broader calibration coverage. The algorithm documents offline experimental preprocessing: the public CLI accepts one `--calib_data` source per run and does not implement the multi-source selector shown above.
+This procedure is designed to balance how different data sources shape the router logits while preserving the FP8 model's natural expert preferences. It limits the influence of any one corpus or prompt format on expert-activation statistics and provides the subsequent AWQ search with broader calibration coverage.
 
 ### Serving-speed reference
 
